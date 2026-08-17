@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Apresentação Interativa 3D do MacBook em tempo real com Mira Animator e Three.js.">
+  <title>MacBook | Mira 3D Experience</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg-primary: #08090d;
+      --bg-secondary: #11141e;
+      --bg-glass: rgba(17, 20, 30, 0.85);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.2);
+      --border: rgba(255, 255, 255, 0.09);
+      --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    /* Navegação */
+    .deck-nav {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 100;
+    }
+
+    .nav-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .nav-dot.active {
+      background: var(--accent);
+      transform: scale(1.4);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    /* Seções e Slides */
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 60px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .brand strong {
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 48px;
+      align-items: center;
+      margin: auto 0;
+    }
+
+    .copy-block .eyebrow {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin-bottom: 12px;
+    }
+
+    .copy-block h1, .copy-block h2 {
+      font-size: clamp(2.4rem, 4.5vw, 3.8rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+
+    .copy-block p.lead {
+      font-size: 1.12rem;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin-bottom: 28px;
+      line-height: 1.65;
+    }
+
+    .specs-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .spec-badge {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 9px 18px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Palco 3D */
+    .stage-3d {
+      width: 100%;
+      height: 560px;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, rgba(17, 20, 30, 0.4) 60%, transparent 80%);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      gap: 12px;
+      transition: opacity 0.5s ease;
+      z-index: 10;
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footnote {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 960px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .slide {
+        padding: 24px;
+      }
+      .stage-3d {
+        height: 420px;
+      }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <nav class="deck-nav" aria-label="Navegação">
+    <button class="nav-dot active" data-target="0" aria-label="Slide 1"></button>
+    <button class="nav-dot" data-target="1" aria-label="Slide 2"></button>
+  </nav>
+
+  <main>
+    <!-- Slide 1: Visão Geral 3D -->
+    <section class="slide" id="slide-0">
+      <header class="topline">
+        <div class="brand"><strong>MacBook</strong> • MIRA 3D EXPERIENCE</div>
+        <div class="slide-no">01 / 02</div>
+      </header>
+
+      <div class="content-grid">
+        <div class="copy-block">
+          <p class="eyebrow">Design & Precisão</p>
+          <h1>MacBook</h1>
+          <p class="lead">Estrutura ultrafina em alumínio unibody, teclado Magic Keyboard com mecanismo tesoura refinado e tela Liquid Retina de alta definição.</p>
+          <div class="specs-list">
+            <span class="spec-badge">✨ Alumínio Unibody</span>
+            <span class="spec-badge">🖥️ Liquid Retina Display</span>
+            <span class="spec-badge">🔄 Órbita Interativa 360°</span>
+          </div>
+        </div>
+
+        <div class="stage-3d">
+          <div id="loader-0" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>Carregando MacBook 3D...</span>
+          </div>
+          <div id="canvas-3d-0" class="canvas-container" data-model="model.glb"></div>
+        </div>
+      </div>
+
+      <footer class="footnote">
+        <span>Arraste com o mouse para girar em 360° e use o scroll para zoom centralizado</span>
+        <span>Mira Animator • 3D Product Showcase</span>
+      </footer>
+    </section>
+
+    <!-- Slide 2: Engenharia & Materiais -->
+    <section class="slide" id="slide-1">
+      <header class="topline">
+        <div class="brand"><strong>MacBook</strong> • MATERIAIS & ENGENHARIA</div>
+        <div class="slide-no">02 / 02</div>
+      </header>
+
+      <div class="content-grid">
+        <div class="copy-block">
+          <p class="eyebrow">Arquitetura de Hardware</p>
+          <h2>Engenharia em cada detalhe</h2>
+          <p class="lead">O chassi esculpido em peça única proporciona máxima rigidez e leveza, com acabamento anodizado que reflete a iluminação de forma pura e uniforme.</p>
+          <div class="specs-list">
+            <span class="spec-badge">⚡ Eficiência Silenciosa</span>
+            <span class="spec-badge">🎛️ Force Touch Trackpad</span>
+            <span class="spec-badge">🎨 Materiais PBR em Tempo Real</span>
+          </div>
+        </div>
+
+        <div class="stage-3d">
+          <div id="loader-1" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>Carregando Detalhes...</span>
+          </div>
+          <div id="canvas-3d-1" class="canvas-container" data-model="model.glb"></div>
+        </div>
+      </div>
+
+      <footer class="footnote">
+        <span>Renderizado em WebGL 2.0 com Three.js</span>
+        <span>Mira Deck System</span>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    function init3DViewer(containerId, loaderId, modelPath) {
+      const container = document.getElementById(containerId);
+      const loaderEl = document.getElementById(loaderId);
+      if (!container) return;
+
+      const width = container.clientWidth || 600;
+      const height = container.clientHeight || 500;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+      
+      // Posição inicial da câmera apontando para o centro perfeito
+      camera.position.set(0, 0.4, 2.6);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
+      container.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.enablePan = false;
+      controls.minDistance = 0.8;
+      controls.maxDistance = 5.0;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.2;
+      
+      // Centro focal cravado na origem (0,0,0)
+      controls.target.set(0, 0, 0);
+
+      let resumeTimer;
+      controls.addEventListener('start', () => {
+        controls.autoRotate = false;
+        clearTimeout(resumeTimer);
+      });
+      controls.addEventListener('end', () => {
+        resumeTimer = setTimeout(() => { controls.autoRotate = true; }, 2000);
+      });
+
+      // Iluminação de Estúdio Profissional (Key, Fill, Rim, Ambient)
+      const ambientLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 2.2);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 4.5);
+      keyLight.position.set(4, 7, 5);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0x38bdf8, 2.0);
+      fillLight.position.set(-5, -1, 4);
+      scene.add(fillLight);
+
+      const rimLight = new THREE.DirectionalLight(0xffffff, 3.5);
+      rimLight.position.set(0, 5, -6);
+      scene.add(rimLight);
+
+      const gltfLoader = new GLTFLoader();
+      gltfLoader.load(modelPath, (gltf) => {
+        const model = gltf.scene;
+        
+        // 1. Atualiza matrizes do objeto
+        model.updateMatrixWorld(true);
+        
+        // 2. Calcula o centro geométrico exato (Bounding Box)
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        
+        // 3. Centraliza o modelo cravado na origem absoluta (0, 0, 0)
+        model.position.x = -center.x;
+        model.position.y = -center.y;
+        model.position.z = -center.z;
+
+        // 4. Escala proporcional para preencher o palco de forma harmoniosa
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const targetScale = 1.45 / maxDim;
+        
+        // Cria um grupo âncora para garantir que o pivô de rotação e zoom seja exatamente (0, 0, 0)
+        const pivotGroup = new THREE.Group();
+        pivotGroup.add(model);
+        pivotGroup.scale.setScalar(targetScale);
+        
+        scene.add(pivotGroup);
+
+        // 5. Garante que o alvo do controle e da câmera permaneça no centro exato
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        if (loaderEl) {
+          loaderEl.style.opacity = '0';
+          setTimeout(() => loaderEl?.remove(), 400);
+        }
+      }, undefined, (err) => {
+        console.error('Erro ao carregar modelo 3D:', err);
+        if (loaderEl) loaderEl.innerHTML = '<span style="color:#ef4444">Erro ao carregar modelo .glb</span>';
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      const handleResize = () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (!w || !h) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      };
+      window.addEventListener('resize', handleResize);
+      new ResizeObserver(handleResize).observe(container);
+    }
+
+    // Inicializar visualizadores nos slides
+    document.querySelectorAll('.canvas-container').forEach((el, idx) => {
+      const modelPath = el.dataset.model || 'model.glb';
+      init3DViewer(el.id, `loader-${idx}`, modelPath);
+    });
+
+    // Navegação de slides
+    const dots = document.querySelectorAll('.nav-dot');
+    dots.forEach((dot, index) => {
+      dot.addEventListener('click', () => {
+        document.getElementById(`slide-${index}`)?.scrollIntoView({ behavior: 'smooth' });
+        dots.forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
